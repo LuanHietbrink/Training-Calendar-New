@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+/* FullCalendar tweaks */
+.fc {
+  font-family: inherit;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.fc .fc-button {
+  background: #1e293b;
+  border: none;
+  text-transform: capitalize;
+}
+.fc .fc-button:hover {
+  background: #0f172a;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: #0ea5e9;
+}
