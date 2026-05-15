@@ -4,8 +4,8 @@ import {
   SESSION_TYPES,
   type Intensity,
   type SessionInput,
-  type SessionType,
 } from "../../lib/types";
+import { SESSION_ICONS } from "../../lib/sessionIcons";
 import type { SessionOccurrence } from "./useSessions";
 
 interface Props {
@@ -211,17 +211,27 @@ export default function SessionDialog({
                   <label className="block text-xs font-medium text-slate-600 mb-1">
                     Session type
                   </label>
-                  <select
-                    value={form.session_type}
-                    onChange={(e) => set("session_type", e.target.value as SessionType)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                  >
-                    {SESSION_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {SESSION_TYPES.map((t) => {
+                      const Icon = SESSION_ICONS[t];
+                      const selected = form.session_type === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => set("session_type", t)}
+                          className={`flex flex-col items-center gap-1 rounded-md border py-2 px-1 text-[11px] font-medium transition-colors ${
+                            selected
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Icon size={14} />
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">

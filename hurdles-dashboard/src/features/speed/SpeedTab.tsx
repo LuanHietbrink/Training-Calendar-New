@@ -43,7 +43,8 @@ interface ChartPoint {
   date: string;
   best_time: number;
   avg_time: number;
-  best_ms: number;
+  best_ms: number; 
+  
   avg_ms: number;
   best_kph: number;
   avg_kph: number;

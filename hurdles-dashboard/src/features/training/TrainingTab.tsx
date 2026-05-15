@@ -5,7 +5,8 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import type { EventClickArg, EventInput } from "@fullcalendar/core";
-import { intensityColor } from "../../lib/types";
+import { intensityColor, SESSION_TYPES } from "../../lib/types";
+import { SESSION_ICONS } from "../../lib/sessionIcons";
 import { useSessions, type SessionOccurrence } from "./useSessions";
 import SessionDialog from "./SessionDialog";
 
@@ -23,9 +24,9 @@ export default function TrainingTab() {
         title: `${o.title}${o.completed ? " ✓" : ""}`,
         start: o.start_time ? `${o.occurrenceDate}T${o.start_time}` : o.occurrenceDate,
         allDay: !o.start_time,
-        backgroundColor: intensityColor[o.intensity],
-        borderColor: intensityColor[o.intensity],
-        textColor: "#fff",
+        backgroundColor: "#fff",
+        borderColor: "#e2e8f0",
+        textColor: "#0f172a",
         classNames: o.completed ? ["opacity-60"] : [],
         extendedProps: { occurrence: o },
       })),
@@ -53,16 +54,29 @@ export default function TrainingTab() {
             Click a day to add a session. Click an event to edit or mark complete.
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-intensity-high" /> High
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-intensity-medium" /> Medium
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-intensity-low" /> Low
-          </span>
+        <div className="flex flex-col items-end gap-1.5 text-xs text-slate-600">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-intensity-high" /> High
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-intensity-medium" /> Medium
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-intensity-low" /> Low
+            </span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {SESSION_TYPES.map((t) => {
+              const Icon = SESSION_ICONS[t];
+              return (
+                <span key={t} className="flex items-center gap-1">
+                  <Icon size={11} className="text-slate-500" />
+                  <span>{t}</span>
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -86,6 +100,22 @@ export default function TrainingTab() {
           events={events}
           dateClick={onDateClick}
           eventClick={onEventClick}
+          eventContent={(arg) => {
+            const occ = arg.event.extendedProps.occurrence as SessionOccurrence;
+            const Icon = SESSION_ICONS[occ.session_type];
+            const color = intensityColor[occ.intensity];
+            return (
+              <div
+                className="flex items-center gap-1 w-full h-full overflow-hidden pr-1"
+                style={{ borderLeft: `3px solid ${color}`, paddingLeft: "4px" }}
+              >
+                <Icon size={10} className="shrink-0 text-slate-500 flex-shrink-0" />
+                <span className="truncate text-[11px] leading-tight font-medium text-slate-800">
+                  {arg.event.title}
+                </span>
+              </div>
+            );
+          }}
           firstDay={1}
         />
         {loading && (
