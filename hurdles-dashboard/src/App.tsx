@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import TrainingTab from "./features/training/TrainingTab";
 import SpeedTab from "./features/speed/SpeedTab";
 import WeightTab from "./features/weight/WeightTab";
+import ProgramsTab from "./features/programs/ProgramsTab";
 
 function Protected() {
   const { session, loading } = useAuth();
@@ -23,6 +24,7 @@ function Protected() {
         <Route path="/training" element={<TrainingTab />} />
         <Route path="/speed" element={<SpeedTab />} />
         <Route path="/weight" element={<WeightTab />} />
+        <Route path="/programs" element={<ProgramsTab />} />
         <Route path="*" element={<Navigate to="/training" replace />} />
       </Routes>
     </Layout>

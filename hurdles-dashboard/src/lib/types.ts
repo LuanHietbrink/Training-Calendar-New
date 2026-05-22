@@ -66,3 +66,21 @@ export const intensityColor: Record<Intensity, string> = {
   Medium: "#f59e0b",
   Low: "#10b981",
 };
+
+export type ProgramFileType = "pdf" | "xlsx" | "docx";
+
+export interface Program {
+  id: string;
+  user_id: string;
+  name: string;
+  file_path: string;
+  file_type: ProgramFileType;
+  file_size: number;
+  uploaded_at: string;
+}
+
+export const ACCEPTED_PROGRAM_TYPES: Record<ProgramFileType, string> = {
+  pdf:  "application/pdf",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};

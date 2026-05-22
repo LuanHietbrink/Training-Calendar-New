@@ -4,6 +4,7 @@ const tabs = [
   { to: "/training", label: "Training" },
   { to: "/speed", label: "Speed" },
   { to: "/weight", label: "Weight" },
+  { to: "/programs", label: "Programs" },
 ];
 
 export default function TabBar() {
