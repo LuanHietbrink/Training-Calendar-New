@@ -153,12 +153,18 @@ function ProgramViewer({ program, onClose, getSignedUrl }: ViewerProps) {
               dangerouslySetInnerHTML={{ __html: xlsxHtml }}
             />
           )}
-          {!busy && !viewError && program.file_type === "docx" && (
-            <div ref={docxRef} className="overflow-auto p-2 bg-white" />
-          )}
-          {!busy && !viewError && program.file_type === "pdf" && (
-            <div ref={pdfRef} className="overflow-auto" />
-          )}
+          {/* docxRef and pdfRef must always be mounted so renderAsync/pdfjs can write
+              into them while busy===true; hide via display rather than conditional render */}
+          <div
+            ref={docxRef}
+            className="overflow-auto p-2 bg-white"
+            style={{ display: !busy && !viewError && program.file_type === "docx" ? "block" : "none" }}
+          />
+          <div
+            ref={pdfRef}
+            className="overflow-auto"
+            style={{ display: !busy && !viewError && program.file_type === "pdf" ? "block" : "none" }}
+          />
         </div>
 
         {/* Footer */}
