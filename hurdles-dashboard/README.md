@@ -90,6 +90,66 @@ npm run dev
 
 Open the URL Vite prints, sign up with email + password, and you're in.
 
+## WhatsApp agent
+
+A Twilio-powered WhatsApp bot (Vercel serverless function at `api/whatsapp.ts`) lets you
+query your training log and add sessions in natural language when you can't use the website —
+e.g. *"how many speed sessions in the last 3 months?"*, *"what weight did I bench on 6/6/26?"*,
+*"add a gym session tomorrow, bench 80kg 5x5, high intensity"*.
+
+It runs a Claude tool-use agent against Supabase. Per-exercise loads aren't a structured column,
+so the agent reads them out of each session's free-text `title` / `actual_notes`.
+
+### 1. Conversation-memory table
+
+Run in the Supabase SQL Editor (in addition to the schema above):
+
+```sql
+create table whatsapp_threads (
+  phone text primary key,
+  messages jsonb not null default '[]'::jsonb,
+  updated_at timestamptz default now()
+);
+-- RLS on with no policies => only the service-role key (server) can touch it.
+alter table whatsapp_threads enable row level security;
+```
+
+### 2. Server environment variables
+
+Set these in **Vercel → Project → Settings → Environment Variables** (server-side; do **not**
+prefix with `VITE_`). See `.env.example`:
+
+| Var | Notes |
+| --- | --- |
+| `SUPABASE_URL` | same project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secret**; bypasses RLS — never expose to the client |
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `ANTHROPIC_MODEL` | optional, defaults to `claude-sonnet-4-6` |
+| `TWILIO_AUTH_TOKEN` | from the Twilio console; verifies webhook signatures |
+| `WHATSAPP_ALLOWED_FROM` | the only sender allowed, e.g. `whatsapp:+27821234567` |
+| `OWNER_USER_ID` | Supabase auth user id the agent reads/writes (Dashboard → Authentication → Users) |
+
+### 3. Twilio setup
+
+1. In the Twilio console open **Messaging → Try it out → Send a WhatsApp message** (sandbox).
+2. From your phone, send the sandbox `join <code>` message to the Twilio number.
+3. Set the sandbox **"When a message comes in"** webhook to
+   `https://<your-app>.vercel.app/api/whatsapp` (HTTP POST).
+4. Deploy (`git push` to the connected branch, or `vercel deploy`), then message the bot.
+
+### 4. Local testing (no Twilio needed)
+
+With `SKIP_TWILIO_VALIDATION=true` set, POST a simulated payload (requires `vercel dev` or any
+runner that serves `api/`):
+
+```powershell
+curl.exe -X POST http://localhost:3000/api/whatsapp `
+  -d "From=whatsapp:+27821234567" `
+  -d "Body=how many speed sessions in the last 3 months?"
+```
+
+You should get back TwiML containing the answer. `From` must match `WHATSAPP_ALLOWED_FROM`.
+
 ## Scripts
 
 - `npm run dev` — start dev server
@@ -107,4 +167,7 @@ src/
     training/    FullCalendar, SessionDialog, useSessions (recurrence expansion)
     speed/       SpeedTab, useSplits
     weight/      WeightTab, useWeights
+api/             Vercel serverless (server-only)
+  whatsapp.ts    Twilio WhatsApp webhook
+  _lib/          agent (Claude tool-use), tools (Supabase), threads, twilio helpers
 ```
