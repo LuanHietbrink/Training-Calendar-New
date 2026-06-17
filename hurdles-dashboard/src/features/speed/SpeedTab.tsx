@@ -125,22 +125,24 @@ export default function SpeedTab() {
 
   const allChartData: AllChartPoint[] = useMemo(() => {
     if (!isAllView) return [];
-    const byDate = new Map<string, Record<string, number | string>>();
+    const byDate = new Map<string, AllChartPoint>();
     for (const s of splits) {
       if (!byDate.has(s.date)) byDate.set(s.date, { date: s.date });
       const entry = byDate.get(s.date)!;
-      const bestKey = `best_${s.distance}`;
-      const avgKey  = `avg_${s.distance}`;
       const bestVal = convert(s.distance, Number(s.best_time), metric);
       const avgVal  = convert(s.distance, Number(s.avg_time),  metric);
-      const existingBest = entry[bestKey] as number | undefined;
-      const existingAvg  = entry[avgKey]  as number | undefined;
-      entry[bestKey] = existingBest === undefined ? bestVal : Math.max(existingBest, bestVal);
-      entry[avgKey]  = existingAvg  === undefined ? avgVal  : Math.max(existingAvg,  avgVal);
+      if (s.distance === 10) {
+        entry.best_10 = entry.best_10 === undefined ? bestVal : Math.max(entry.best_10, bestVal);
+        entry.avg_10  = entry.avg_10  === undefined ? avgVal  : Math.max(entry.avg_10,  avgVal);
+      } else if (s.distance === 20) {
+        entry.best_20 = entry.best_20 === undefined ? bestVal : Math.max(entry.best_20, bestVal);
+        entry.avg_20  = entry.avg_20  === undefined ? avgVal  : Math.max(entry.avg_20,  avgVal);
+      } else {
+        entry.best_30 = entry.best_30 === undefined ? bestVal : Math.max(entry.best_30, bestVal);
+        entry.avg_30  = entry.avg_30  === undefined ? avgVal  : Math.max(entry.avg_30,  avgVal);
+      }
     }
-    return Array.from(byDate.values()).sort((a, b) =>
-      (a.date as string).localeCompare(b.date as string),
-    ) as AllChartPoint[];
+    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
   }, [splits, isAllView, metric]);
 
   function handleFilterChange(f: FilterDistance) {
