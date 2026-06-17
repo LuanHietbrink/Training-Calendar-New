@@ -14,6 +14,7 @@ import { useSplits } from "./useSplits";
 
 const DISTANCES = [10, 20, 30] as const;
 type Distance = (typeof DISTANCES)[number];
+type FilterDistance = Distance | "all";
 
 type Metric = "time" | "ms" | "kph" | "mph";
 
@@ -43,17 +44,38 @@ interface ChartPoint {
   date: string;
   best_time: number;
   avg_time: number;
-  best_ms: number; 
-  
+  best_ms: number;
   avg_ms: number;
   best_kph: number;
   avg_kph: number;
   best_mph: number;
   avg_mph: number;
-  best: number;     // value plotted for chart (depends on metric)
+  best: number;
   avg: number;
   notes: string | null;
 }
+
+interface AllChartPoint {
+  date: string;
+  best_10?: number; avg_10?: number;
+  best_20?: number; avg_20?: number;
+  best_30?: number; avg_30?: number;
+}
+
+const ALL_LINES: { dist: Distance; type: "best" | "avg"; color: string; dash?: string }[] = [
+  { dist: 10, type: "best", color: "#0ea5e9" },
+  { dist: 10, type: "avg",  color: "#7dd3fc", dash: "4 2" },
+  { dist: 20, type: "best", color: "#10b981" },
+  { dist: 20, type: "avg",  color: "#6ee7b7", dash: "4 2" },
+  { dist: 30, type: "best", color: "#f59e0b" },
+  { dist: 30, type: "avg",  color: "#fcd34d", dash: "4 2" },
+];
+
+const DIST_COLORS: Record<Distance, { best: string; avg: string }> = {
+  10: { best: "#0ea5e9", avg: "#7dd3fc" },
+  20: { best: "#10b981", avg: "#6ee7b7" },
+  30: { best: "#f59e0b", avg: "#fcd34d" },
+};
 
 export default function SpeedTab() {
   const { splits, loading, error, create, remove } = useSplits();
@@ -63,16 +85,17 @@ export default function SpeedTab() {
   const [best, setBest] = useState("");
   const [avg, setAvg] = useState("");
   const [notes, setNotes] = useState("");
-  const [filter, setFilter] = useState<Distance>(10);
+  const [filter, setFilter] = useState<FilterDistance>(10);
   const [metric, setMetric] = useState<Metric>("time");
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
 
   const metricMeta = METRIC_OPTIONS.find((m) => m.value === metric)!;
+  const isAllView = filter === "all";
 
   const filtered = useMemo(
-    () => splits.filter((s) => s.distance === filter),
-    [splits, filter],
+    () => (isAllView ? [] : splits.filter((s) => s.distance === filter)),
+    [splits, filter, isAllView],
   );
 
   const chartData: ChartPoint[] = useMemo(
@@ -99,6 +122,34 @@ export default function SpeedTab() {
       }),
     [filtered, metric],
   );
+
+  const allChartData: AllChartPoint[] = useMemo(() => {
+    if (!isAllView) return [];
+    const byDate = new Map<string, Record<string, number | string>>();
+    for (const s of splits) {
+      if (!byDate.has(s.date)) byDate.set(s.date, { date: s.date });
+      const entry = byDate.get(s.date)!;
+      const bestKey = `best_${s.distance}`;
+      const avgKey  = `avg_${s.distance}`;
+      const bestVal = convert(s.distance, Number(s.best_time), metric);
+      const avgVal  = convert(s.distance, Number(s.avg_time),  metric);
+      const existingBest = entry[bestKey] as number | undefined;
+      const existingAvg  = entry[avgKey]  as number | undefined;
+      entry[bestKey] = existingBest === undefined ? bestVal : Math.max(existingBest, bestVal);
+      entry[avgKey]  = existingAvg  === undefined ? avgVal  : Math.max(existingAvg,  avgVal);
+    }
+    return Array.from(byDate.values()).sort((a, b) =>
+      (a.date as string).localeCompare(b.date as string),
+    ) as AllChartPoint[];
+  }, [splits, isAllView, metric]);
+
+  function handleFilterChange(f: FilterDistance) {
+    setFilter(f);
+    if (f === "all" && metric === "time") setMetric("ms");
+  }
+
+  const activeChartData = isAllView ? allChartData : chartData;
+  const hasData = activeChartData.length > 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -213,31 +264,37 @@ export default function SpeedTab() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <h3 className="font-semibold text-sm">
-            {metricMeta.label} over time
+            {isAllView ? "All distances" : metricMeta.label} over time
           </h3>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex gap-1">
-              {METRIC_OPTIONS.map((m) => (
-                <button
-                  key={m.value}
-                  onClick={() => setMetric(m.value)}
-                  className={[
-                    "px-3 py-1 rounded-full text-xs font-medium border",
-                    metric === m.value
-                      ? "bg-sky-600 text-white border-sky-600"
-                      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100",
-                  ].join(" ")}
-                >
-                  {m.label}
-                </button>
-              ))}
+              {METRIC_OPTIONS.map((m) => {
+                const disabled = isAllView && m.value === "time";
+                return (
+                  <button
+                    key={m.value}
+                    onClick={() => !disabled && setMetric(m.value)}
+                    disabled={disabled}
+                    className={[
+                      "px-3 py-1 rounded-full text-xs font-medium border",
+                      disabled
+                        ? "opacity-30 cursor-not-allowed bg-white text-slate-400 border-slate-200"
+                        : metric === m.value
+                          ? "bg-sky-600 text-white border-sky-600"
+                          : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100",
+                    ].join(" ")}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
             </div>
             <div className="h-5 w-px bg-slate-200 hidden sm:block" />
             <div className="flex gap-1">
               {DISTANCES.map((d) => (
                 <button
                   key={d}
-                  onClick={() => setFilter(d)}
+                  onClick={() => handleFilterChange(d)}
                   className={[
                     "px-3 py-1 rounded-full text-xs font-medium border",
                     filter === d
@@ -248,14 +305,54 @@ export default function SpeedTab() {
                   {d}m
                 </button>
               ))}
+              <button
+                onClick={() => handleFilterChange("all")}
+                className={[
+                  "px-3 py-1 rounded-full text-xs font-medium border",
+                  isAllView
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100",
+                ].join(" ")}
+              >
+                All
+              </button>
             </div>
           </div>
         </div>
+
         <div className="h-72">
-          {chartData.length === 0 ? (
+          {!hasData ? (
             <div className="h-full flex items-center justify-center text-xs text-slate-400">
-              No {filter}m splits yet.
+              {isAllView ? "No splits recorded yet." : `No ${filter}m splits yet.`}
             </div>
+          ) : isAllView ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={allChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" fontSize={11} stroke="#64748b" />
+                <YAxis
+                  fontSize={11}
+                  stroke="#64748b"
+                  domain={["auto", "auto"]}
+                  tickFormatter={(v) => Number(v).toFixed(2)}
+                />
+                <Tooltip content={<AllSplitTooltip metric={metric} />} />
+                <Legend />
+                {ALL_LINES.map(({ dist, type, color, dash }) => (
+                  <Line
+                    key={`${type}_${dist}`}
+                    type="monotone"
+                    dataKey={`${type}_${dist}`}
+                    name={`${type === "best" ? "Best" : "Avg"} ${dist}m (${metricMeta.unit})`}
+                    stroke={color}
+                    strokeWidth={2}
+                    strokeDasharray={dash}
+                    dot={{ r: 3 }}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -291,8 +388,11 @@ export default function SpeedTab() {
             </ResponsiveContainer>
           )}
         </div>
+
         <p className="text-[11px] text-slate-400 mt-2">
-          Lower is better when viewing split time; higher is better for m/s, kph, and mph.
+          {isAllView
+            ? "Solid lines = best; dashed lines = average. Higher is better."
+            : "Lower is better when viewing split time; higher is better for m/s, kph, and mph."}
         </p>
       </div>
 
@@ -390,6 +490,52 @@ function SplitTooltip({ active, payload, label }: TooltipProps<number, string>) 
           {p.notes}
         </p>
       )}
+    </div>
+  );
+}
+
+function AllSplitTooltip({
+  active,
+  payload,
+  label,
+  metric,
+}: TooltipProps<number, string> & { metric: Metric }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const p = payload[0].payload as Record<string, number | string | undefined>;
+  const unit = METRIC_OPTIONS.find((m) => m.value === metric)?.unit ?? "";
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white shadow-md px-3 py-2 min-w-[180px]">
+      <p className="text-xs font-medium text-slate-900 mb-2">{label}</p>
+      {DISTANCES.map((d) => {
+        const bestVal = p[`best_${d}`] as number | undefined;
+        const avgVal  = p[`avg_${d}`]  as number | undefined;
+        if (bestVal === undefined && avgVal === undefined) return null;
+        const colors = DIST_COLORS[d];
+        return (
+          <div key={d} className="mt-1.5 first:mt-0">
+            <p className="text-xs font-semibold text-slate-600">{d}m fly</p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs mt-0.5">
+              {bestVal !== undefined && (
+                <>
+                  <span style={{ color: colors.best }}>Best</span>
+                  <span className="text-right tabular-nums text-slate-700">
+                    {bestVal.toFixed(2)} {unit}
+                  </span>
+                </>
+              )}
+              {avgVal !== undefined && (
+                <>
+                  <span style={{ color: colors.avg }}>Avg</span>
+                  <span className="text-right tabular-nums text-slate-700">
+                    {avgVal.toFixed(2)} {unit}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
