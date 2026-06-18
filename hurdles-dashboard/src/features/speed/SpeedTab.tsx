@@ -40,6 +40,40 @@ function convert(distance: number, time: number, metric: Metric) {
   return ms * MS_TO_MPH;
 }
 
+function linearRegression(points: { x: number; y: number }[]): { slope: number; intercept: number } | null {
+  const n = points.length;
+  if (n < 2) return null;
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (const p of points) {
+    sumX += p.x;
+    sumY += p.y;
+    sumXY += p.x * p.y;
+    sumXX += p.x * p.x;
+  }
+  const denom = n * sumXX - sumX * sumX;
+  if (denom === 0) return null;
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
+function applyTrend(
+  arr: AllChartPoint[],
+  key: "best_10" | "best_20" | "best_30",
+  trendKey: "best_10_trend" | "best_20_trend" | "best_30_trend",
+) {
+  const points: { x: number; y: number }[] = [];
+  arr.forEach((p, i) => {
+    const v = p[key];
+    if (v !== undefined) points.push({ x: i, y: v });
+  });
+  const reg = linearRegression(points);
+  if (!reg) return;
+  arr.forEach((p, i) => {
+    p[trendKey] = reg.intercept + reg.slope * i;
+  });
+}
+
 interface ChartPoint {
   date: string;
   best_time: number;
@@ -52,14 +86,15 @@ interface ChartPoint {
   avg_mph: number;
   best: number;
   avg: number;
+  best_trend?: number;
   notes: string | null;
 }
 
 interface AllChartPoint {
   date: string;
-  best_10?: number; avg_10?: number;
-  best_20?: number; avg_20?: number;
-  best_30?: number; avg_30?: number;
+  best_10?: number; avg_10?: number; best_10_trend?: number;
+  best_20?: number; avg_20?: number; best_20_trend?: number;
+  best_30?: number; avg_30?: number; best_30_trend?: number;
 }
 
 const ALL_LINES: { dist: Distance; type: "best" | "avg"; color: string; dash?: string }[] = [
@@ -87,6 +122,7 @@ export default function SpeedTab() {
   const [notes, setNotes] = useState("");
   const [filter, setFilter] = useState<FilterDistance>(10);
   const [metric, setMetric] = useState<Metric>("time");
+  const [showTrend, setShowTrend] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
 
@@ -98,30 +134,31 @@ export default function SpeedTab() {
     [splits, filter, isAllView],
   );
 
-  const chartData: ChartPoint[] = useMemo(
-    () =>
-      filtered.map((s) => {
-        const bt = Number(s.best_time);
-        const at = Number(s.avg_time);
-        const bms = toMs(s.distance, bt);
-        const ams = toMs(s.distance, at);
-        return {
-          date: s.date,
-          best_time: bt,
-          avg_time: at,
-          best_ms: bms,
-          avg_ms: ams,
-          best_kph: bms * MS_TO_KPH,
-          avg_kph: ams * MS_TO_KPH,
-          best_mph: bms * MS_TO_MPH,
-          avg_mph: ams * MS_TO_MPH,
-          best: convert(s.distance, bt, metric),
-          avg: convert(s.distance, at, metric),
-          notes: s.notes,
-        };
-      }),
-    [filtered, metric],
-  );
+  const chartData: ChartPoint[] = useMemo(() => {
+    const base = filtered.map((s) => {
+      const bt = Number(s.best_time);
+      const at = Number(s.avg_time);
+      const bms = toMs(s.distance, bt);
+      const ams = toMs(s.distance, at);
+      return {
+        date: s.date,
+        best_time: bt,
+        avg_time: at,
+        best_ms: bms,
+        avg_ms: ams,
+        best_kph: bms * MS_TO_KPH,
+        avg_kph: ams * MS_TO_KPH,
+        best_mph: bms * MS_TO_MPH,
+        avg_mph: ams * MS_TO_MPH,
+        best: convert(s.distance, bt, metric),
+        avg: convert(s.distance, at, metric),
+        notes: s.notes,
+      };
+    });
+    const reg = linearRegression(base.map((p, i) => ({ x: i, y: p.best })));
+    if (!reg) return base;
+    return base.map((p, i) => ({ ...p, best_trend: reg.intercept + reg.slope * i }));
+  }, [filtered, metric]);
 
   const allChartData: AllChartPoint[] = useMemo(() => {
     if (!isAllView) return [];
@@ -142,7 +179,11 @@ export default function SpeedTab() {
         entry.avg_30  = entry.avg_30  === undefined ? avgVal  : Math.max(entry.avg_30,  avgVal);
       }
     }
-    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const arr = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+    applyTrend(arr, "best_10", "best_10_trend");
+    applyTrend(arr, "best_20", "best_20_trend");
+    applyTrend(arr, "best_30", "best_30_trend");
+    return arr;
   }, [splits, isAllView, metric]);
 
   function handleFilterChange(f: FilterDistance) {
@@ -319,6 +360,18 @@ export default function SpeedTab() {
                 All
               </button>
             </div>
+            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+            <button
+              onClick={() => setShowTrend((v) => !v)}
+              className={[
+                "px-3 py-1 rounded-full text-xs font-medium border",
+                showTrend
+                  ? "bg-violet-600 text-white border-violet-600"
+                  : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              Trendline
+            </button>
           </div>
         </div>
 
@@ -353,6 +406,23 @@ export default function SpeedTab() {
                     connectNulls
                   />
                 ))}
+                {showTrend &&
+                  DISTANCES.map((d) => (
+                    <Line
+                      key={`trend_${d}`}
+                      type="monotone"
+                      dataKey={`best_${d}_trend`}
+                      name={`${d}m trend`}
+                      stroke={DIST_COLORS[d].best}
+                      strokeOpacity={0.5}
+                      strokeWidth={1.5}
+                      strokeDasharray="2 3"
+                      dot={false}
+                      activeDot={false}
+                      connectNulls
+                      isAnimationActive={false}
+                    />
+                  ))}
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -386,6 +456,19 @@ export default function SpeedTab() {
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
+                {showTrend && (
+                  <Line
+                    type="monotone"
+                    dataKey="best_trend"
+                    name="Trend"
+                    stroke="#94a3b8"
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    dot={false}
+                    activeDot={false}
+                    isAnimationActive={false}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           )}
