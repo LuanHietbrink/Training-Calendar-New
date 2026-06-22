@@ -1,6 +1,6 @@
 export type Intensity = "High" | "Medium" | "Low";
 
-export type SessionType = "Hurdles" | "Speed" | "Tempo" | "Gym" | "Recovery" | "Other";
+export type SessionType = "Hurdles" | "Speed" | "Tempo" | "Gym" | "Recovery" | "Other" | "Race";
 
 export type Recurrence = "weekly" | null;
 
@@ -57,6 +57,7 @@ export const SESSION_TYPES: SessionType[] = [
   "Gym",
   "Recovery",
   "Other",
+  "Race",
 ];
 
 export const INTENSITIES: Intensity[] = ["High", "Medium", "Low"];

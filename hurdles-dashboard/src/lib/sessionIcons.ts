@@ -1,4 +1,4 @@
-import { Construction, Zap, Target, Dumbbell, Wind, ClipboardList } from "lucide-react";
+import { Construction, Zap, Target, Dumbbell, Wind, ClipboardList, Trophy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SessionType } from "./types";
 
@@ -9,4 +9,5 @@ export const SESSION_ICONS: Record<SessionType, LucideIcon> = {
   Gym: Dumbbell,
   Recovery: Wind,
   Other: ClipboardList,
+  Race: Trophy
 };
