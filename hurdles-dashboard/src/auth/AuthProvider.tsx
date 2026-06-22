@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import { useInactivityLogout } from "./useInactivityLogout";
 
 interface AuthState {
   session: Session | null;
@@ -34,6 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useInactivityLogout(!!session, () => {
+    supabase.auth.signOut();
+  });
 
   const value = useMemo<AuthState>(
     () => ({

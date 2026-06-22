@@ -10,6 +10,8 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient(url ?? "http://localhost", anonKey ?? "public-anon-key");
+export const supabase = createClient(url ?? "http://localhost", anonKey ?? "public-anon-key", {
+  auth: { storage: window.sessionStorage },
+});
 
 export const supabaseConfigured = Boolean(url && anonKey);
